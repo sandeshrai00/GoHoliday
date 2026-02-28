@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #4f46e5;
+  /* Indigo 600 */
+  --primary-dark: #3730a3;
+  /* Indigo 800 */
+  --secondary: #64748b;
+  /* Slate 500 */
+  --secondary-dark: #1e293b;
+  /* Slate 800 */
+  --surface: #ffffff;
+  --bg-subtle: #f8fafc;
+  /* Slate 50 */
+  --border-subtle: #f1f5f9;
+  /* Slate 100 */
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  @apply text-gray-900 bg-gray-50;
+}
+
+/* Fade-in animation for page load */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-on-scroll {
+  animation: fadeIn 0.6s ease-in-out;
+}
+
+/* Shimmer animation for skeleton loaders */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+}
+
+/* Image zoom on hover effect */
+.hover-zoom {
+  overflow: hidden;
+}
+
+.hover-zoom img {
+  transition: transform 0.3s ease-in-out;
+}
+
+.hover-zoom:hover img {
+  transform: scale(1.05);
+}
+
+/* Glassmorphism utility class */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Professional Card Utility */
+.pro-card {
+  @apply bg-white border border-slate-100 shadow-sm transition-all duration-300;
+}
+
+.pro-card:hover {
+  @apply shadow-xl shadow-slate-200/40 -translate-y-0;
+}
+
+/* Compact Density utility */
+.tight-padding {
+  @apply p-1.5 md:p-3;
+}
