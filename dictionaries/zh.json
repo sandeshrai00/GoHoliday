@@ -11,6 +11,7 @@
   "footer": {
     "home": "首页",
     "tours": "旅游",
+    "about": "关于我们",
     "contact": "联系我们",
     "privacy": "隐私政策"
   },
@@ -299,5 +300,20 @@
     "loginToBook": "请登录以预订旅游",
     "login": "登录",
     "register": "注册"
+  },
+  "about": {
+    "title": "关于 GoHolidays",
+    "subtitle": "您值得信赖的跨境旅行伙伴",
+    "ourStoryTitle": "我们的故事",
+    "ourStoryContent": "GoHolidays 的成立只有一个使命：在亚洲最迷人的目的地提供无缝、专家策划的旅行体验。我们专注于连接尼泊尔雄伟的喜马拉雅山、泰国的活力文化和印度丰富遗产的跨境旅游套餐。无论您是寻找从尼泊尔到泰国的登山之旅、从印度到泰国的文化沉浸，还是从泰国到尼泊尔的热带逃离，我们的团队都会以当地的专业知识和专业的关怀确保每一个细节都得到妥善处理。",
+    "missionTitle": "我们的使命",
+    "missionContent": "通过无缝的跨境旅行体验搭建文化桥梁并创造难忘的回忆，确保每位旅行者的安全、舒适和真实的发现。",
+    "whyUsTitle": "为什么选择我们旅行？",
+    "expertise1Title": "尼泊尔专家",
+    "expertise1Desc": "我们出生在喜马拉雅山脉，了解尼泊尔的每一座山峰、寺庙和隐藏的小径。",
+    "expertise2Title": "泰国专家",
+    "expertise2Desc": "从曼谷广受好评的市场到普吉岛和苏梅岛宁静的海滩。",
+    "expertise3Title": "跨境精通",
+    "expertise3Desc": "我们处理尼泊尔、印度和泰国之间多国旅游的所有物流。"
   }
 }

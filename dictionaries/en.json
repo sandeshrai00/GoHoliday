@@ -11,6 +11,7 @@
   "footer": {
     "home": "Home",
     "tours": "Tours",
+    "about": "About Us",
     "contact": "Contact",
     "privacy": "Privacy Policy"
   },
@@ -297,5 +298,20 @@
     "loginToBook": "Please log in to book a tour",
     "login": "Login",
     "register": "Register"
+  },
+  "about": {
+    "title": "About GoHolidays",
+    "subtitle": "Your Trusted Cross-Border Travel Partner",
+    "ourStoryTitle": "Our Story",
+    "ourStoryContent": "GoHolidays was founded with a single mission: to provide seamless, expert-curated travel experiences across Asia's most captivating destinations. We specialize in cross-border tour packages connecting the majestic Himalayas of Nepal, the vibrant culture of Thailand, and the rich heritage of India. Whether you're looking for a mountain trek from Nepal to Thailand, a cultural immersion from India to Thailand, or a tropical escape from Thailand to Nepal, our team ensures every detail is handled with local expertise and professional care.",
+    "missionTitle": "Our Mission",
+    "missionContent": "To bridge cultures and create unforgettable memories through seamless cross-border travel experiences, ensuring safety, comfort, and authentic discovery for every traveler.",
+    "whyUsTitle": "Why Travel With Us?",
+    "expertise1Title": "Nepal Specialists",
+    "expertise1Desc": "Born in the Himalayas, we know every peak, temple, and hidden trail in Nepal.",
+    "expertise2Title": "Thailand Experts",
+    "expertise2Desc": "From Bangkok's bustling markets to the serene beaches of Phuket and Koh Samui.",
+    "expertise3Title": "Cross-Border Mastery",
+    "expertise3Desc": "We handle all logistics for multi-country tours between Nepal, India, and Thailand."
   }
 }

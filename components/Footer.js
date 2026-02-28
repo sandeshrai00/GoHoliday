@@ -29,6 +29,7 @@ export default function Footer({ lang = 'en', dict }) {
             {[
 
               { label: dict?.footer?.tours || 'Destinations', href: `/${lang}/tours` },
+              { label: dict?.footer?.about || 'About Us', href: `/${lang}/about` },
               { label: dict?.footer?.contact || 'Get In Touch', href: `/${lang}/contact` },
               { label: dict?.footer?.privacy || 'Privacy Policy', href: `/${lang}/privacy` }
             ].map(link => (
