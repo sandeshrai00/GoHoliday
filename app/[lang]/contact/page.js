@@ -14,8 +14,7 @@ export default function ContactPage() {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
-        subject: '',
-        message: ''
+        subject: ''
     })
     const [status, setStatus] = useState({ type: '', message: '' })
     const [loading, setLoading] = useState(false)
@@ -37,7 +36,7 @@ export default function ContactPage() {
                 type: 'success',
                 message: dict?.booking?.successMessage || 'Thank you! Your message has been sent successfully. We will get back to you soon.'
             })
-            setFormData({ name: '', email: '', subject: '', message: '' })
+            setFormData({ name: '', email: '', subject: '' })
         } catch (error) {
             setStatus({
                 type: 'error',
@@ -88,8 +87,8 @@ export default function ContactPage() {
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-bold text-gray-900 mb-1">Email Us</h3>
-                                            <p className="text-gray-600">info@goholiday.com</p>
-                                            <p className="text-gray-600">support@goholiday.com</p>
+                                            <p className="text-gray-600">support@goholidays.me</p>
+                                            <p className="text-gray-600">sandesh@goholidays.me</p>
                                         </div>
                                     </div>
 
@@ -101,8 +100,7 @@ export default function ContactPage() {
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-bold text-gray-900 mb-1">Call Us</h3>
-                                            <p className="text-gray-600">+66 2 123 4567 (Thailand)</p>
-                                            <p className="text-gray-600">+977 1 4567890 (Nepal)</p>
+                                            <p className="text-gray-600">xxxxx</p>
                                         </div>
                                     </div>
 
@@ -169,24 +167,14 @@ export default function ContactPage() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                                        <textarea
-                                            required
-                                            rows={5}
-                                            value={formData.message}
-                                            onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary-500 outline-none transition-all resize-none"
-                                            placeholder="Tell us how we can help you..."
-                                        ></textarea>
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="w-full py-4 bg-primary-800 text-white rounded-xl font-bold hover:bg-primary-900 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                                        >
+                                            {loading ? 'Sending...' : 'Send Message'}
+                                        </button>
                                     </div>
-
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="w-full py-4 bg-primary-800 text-white rounded-xl font-bold hover:bg-primary-900 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
-                                    >
-                                        {loading ? 'Sending...' : 'Send Message'}
-                                    </button>
                                 </form>
                             </div>
                         </div>
