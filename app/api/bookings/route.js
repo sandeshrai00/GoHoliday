@@ -91,7 +91,7 @@ export async function POST(request) {
         const safeEmail = String(email).trim().slice(0, 200);
         const safePhone = String(phone).trim().slice(0, 50);
         const safeMessage = message ? String(message).trim().slice(0, 2000) : '';
-        // Fetch the authoritative tour price and discount status from the DB
+
         const db = getDb();
 
         const tourResult = await db.select({
@@ -114,14 +114,14 @@ export async function POST(request) {
         // Calculate the true price per person
         const hasDiscount = dbTour.is_discount_active === 1 && dbTour.discount_percentage > 0;
         const pricePerAdult = hasDiscount ? dbTour.price * (1 - dbTour.discount_percentage / 100) : dbTour.price;
-        const pricePerChild = pricePerAdult * 0.5; // Assuming 50% child discount based on BookingForm
+        const pricePerChild = pricePerAdult * 0.5;
 
         // Calculate authoritative total price
         const safeGuests = Math.max(1, Math.min(100, parseInt(body.guests) || 1));
         const safeChildren = Math.max(0, Math.min(100, parseInt(body.children) || 0));
         const trueTotalPrice = (safeGuests * pricePerAdult) + (safeChildren * pricePerChild);
 
-        const refCode = generateRefCode(); // Create the new alphanumeric code
+        const refCode = generateRefCode();
 
         const [newBooking] = await db.insert(bookingsSchema).values({
             tour_id: safeTourId,
@@ -136,147 +136,178 @@ export async function POST(request) {
             total_price: trueTotalPrice
         }).returning();
 
-        // Send emails asynchronously (don't block the response, but catch errors)
+        // Send emails asynchronously
         if (resend) {
             try {
                 let tourName = dbTour.title || dbTour.baseTitle || `Tour #${safeTourId}`;
 
                 const customerHtml = `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <title>Booking Request Received</title>
-                    </head>
-                    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 40px 0;">
-                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                            <tr>
-                                <td align="center">
-                                    <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                                        <tr>
-                                            <td style="background-color: #0f172a; padding: 40px 30px; text-align: center;">
-                                                <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">GoHolidays</h1>
-                                                <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">Your Premium Travel Experience</p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td style="padding: 40px 30px;">
-                                                <h2 style="color: #0f172a; margin: 0 0 20px 0; font-size: 20px; font-weight: 600;">Booking Request Received</h2>
-                                                <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">Dear ${safeName},</p>
-                                                <p style="color: #475569; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">Thank you for choosing GoHolidays. We have received your booking request for <strong>${tourName}</strong> and our team is currently processing it. We will contact you shortly via ${safeContactMethod} to confirm your itinerary and the final arrangements.</p>
-                                                
-                                                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-bottom: 30px;">
-                                                    <h3 style="color: #0f172a; margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Request Summary</h3>
-                                                    <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                                                        <tr>
-                                                            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Booking Reference:</td>
-                                                            <td style="padding: 8px 0; color: #0f172a; font-size: 14px; font-weight: 600; text-align: right;">${newBooking.reference_code}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Tour Requested:</td>
-                                                            <td style="padding: 8px 0; color: #0f172a; font-size: 14px; font-weight: 600; text-align: right;">${tourName}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Number of Guests:</td>
-                                                            <td style="padding: 8px 0; color: #0f172a; font-size: 14px; font-weight: 600; text-align: right;">${safeGuests}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td style="padding: 8px 0; border-top: 1px dashed #cbd5e1; margin-top: 8px; color: #64748b; font-size: 14px; font-weight: 600;">Estimated Total:</td>
-                                                            <td style="padding: 8px 0; border-top: 1px dashed #cbd5e1; margin-top: 8px; color: #0f172a; font-size: 16px; font-weight: 700; text-align: right;">$${trueTotalPrice.toFixed(2)}</td>
-                                                        </tr>
-                                                    </table>
-                                                </div>
-                                                
-                                                <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0;">If you have any immediate questions, simply reply to this email or contact our support team.</p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td style="background-color: #f8fafc; padding: 24px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-                                                <p style="color: #94a3b8; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} GoHolidays. All rights reserved.</p>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-                    </body>
-                    </html>
-                `;
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Booking Request Received - GoHolidays</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f3f4f6">
+<tr>
+<td align="center" style="padding:40px 20px;">
+
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.06);">
+
+<tr>
+<td align="center" style="padding:40px 20px 25px 20px;">
+<img src="https://res.cloudinary.com/dl8ksbjyp/image/upload/v1772282746/logo_gyshkj.png"
+width="170"
+style="display:block;border:0;">
+</td>
+</tr>
+
+<tr>
+<td style="height:4px;background:linear-gradient(to right,#2563eb,#1e3a8a);"></td>
+</tr>
+
+<tr>
+<td style="padding:40px 50px 20px 50px;">
+<h2 style="margin:0 0 15px 0;color:#111827;font-size:22px;font-weight:600;">
+Booking Request Received
+</h2>
+
+<p style="color:#4b5563;font-size:15px;line-height:1.7;">
+Dear ${safeName},<br><br>
+Thank you for submitting your booking request for <strong>${tourName}</strong> with GoHolidays.
+</p>
+
+<p style="color:#4b5563;font-size:15px;line-height:1.7;">
+⚠️ <strong>This is not a confirmed booking yet.</strong><br>
+Our travel team is currently reviewing your request. We will contact you via <strong>${safeContactMethod}</strong> shortly to confirm availability and finalize your itinerary.
+</p>
+</td>
+</tr>
+
+<tr>
+<td style="padding:0 50px 30px 50px;">
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;">
+<table width="100%">
+<tr>
+<td style="padding:6px 0;color:#64748b;font-size:14px;">Reference Code:</td>
+<td style="padding:6px 0;text-align:right;font-weight:600;color:#111827;">${newBooking.reference_code}</td>
+</tr>
+<tr>
+<td style="padding:6px 0;color:#64748b;font-size:14px;">Guests:</td>
+<td style="padding:6px 0;text-align:right;font-weight:600;color:#111827;">${safeGuests} Adults${safeChildren > 0 ? `, ${safeChildren} Children` : ''}</td>
+</tr>
+<tr>
+<td style="padding:6px 0;border-top:1px dashed #cbd5e1;color:#64748b;font-size:14px;">Estimated Total:</td>
+<td style="padding:6px 0;border-top:1px dashed #cbd5e1;text-align:right;font-weight:700;color:#111827;">$${trueTotalPrice.toFixed(2)}</td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
+
+<tr>
+<td style="padding:0 50px 30px 50px;color:#6b7280;font-size:13px;line-height:1.6;">
+If you have urgent questions, reply to this email or contact us at support@goholidays.me.
+</td>
+</tr>
+
+<tr>
+<td style="background:#f8fafc;text-align:center;padding:20px;font-size:12px;color:#9ca3af;">
+© ${new Date().getFullYear()} GoHolidays. All rights reserved.
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+`;
 
                 const adminHtml = `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <title>New Booking Alert</title>
-                    </head>
-                    <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f1f5f9; margin: 0; padding: 30px 0;">
-                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                            <tr>
-                                <td align="center">
-                                    <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; border-top: 4px solid #3b82f6; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);">
-                                        <tr>
-                                            <td style="padding: 30px;">
-                                                <div style="display: flex; align-items: center; margin-bottom: 24px;">
-                                                    <span style="background-color: #eff6ff; color: #3b82f6; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">New Lead</span>
-                                                    <span style="color: #64748b; font-size: 13px; margin-left: 12px;">Ref: ${newBooking.reference_code}</span>
-                                                </div>
-                                                
-                                                <h2 style="color: #0f172a; margin: 0 0 8px 0; font-size: 22px; font-weight: 700;">Action Required: New Booking</h2>
-                                                <p style="color: #475569; font-size: 15px; margin: 0 0 24px 0;">A new booking request has just been submitted via the website.</p>
-                                                
-                                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 24px;">
-                                                    <tr>
-                                                        <td style="padding: 16px; border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
-                                                            <h3 style="color: #0f172a; margin: 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Customer Details</h3>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="padding: 16px;">
-                                                            <div style="margin-bottom: 12px;"><strong style="color: #475569; font-size: 13px; text-transform: uppercase;">Name:</strong> <span style="color: #0f172a; font-size: 15px; margin-left: 8px;">${safeName}</span></div>
-                                                            <div style="margin-bottom: 12px;"><strong style="color: #475569; font-size: 13px; text-transform: uppercase;">Email:</strong> <a href="mailto:${safeEmail}" style="color: #3b82f6; font-size: 15px; margin-left: 8px; text-decoration: none;">${safeEmail}</a></div>
-                                                            <div style="margin-bottom: 12px;"><strong style="color: #475569; font-size: 13px; text-transform: uppercase;">Phone:</strong> <span style="color: #0f172a; font-size: 15px; margin-left: 8px;">${safePhone}</span></div>
-                                                            <div><strong style="color: #475569; font-size: 13px; text-transform: uppercase;">Prefers:</strong> <span style="background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">${safeContactMethod}</span></div>
-                                                        </td>
-                                                    </tr>
-                                                </table>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>New Booking Request - GoHolidays</title>
+</head>
 
-                                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 30px;">
-                                                    <tr>
-                                                        <td style="padding: 16px; border-bottom: 1px solid #e2e8f0; background-color: #f8fafc;">
-                                                            <h3 style="color: #0f172a; margin: 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Booking Specifications</h3>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="padding: 16px;">
-                                                            <div style="margin-bottom: 12px;"><strong style="color: #475569; font-size: 13px; text-transform: uppercase;">Tour ID:</strong> <span style="color: #0f172a; font-size: 15px; margin-left: 8px;">#${safeTourId}</span></div>
-                                                            <div style="margin-bottom: 12px;"><strong style="color: #475569; font-size: 13px; text-transform: uppercase;">Party Size:</strong> <span style="color: #0f172a; font-size: 15px; margin-left: 8px;">${safeGuests} Adults${safeChildren > 0 ? `, ${safeChildren} Children` : ''}</span></div>
-                                                            <div style="margin-bottom: 16px;"><strong style="color: #475569; font-size: 13px; text-transform: uppercase;">Total Quote:</strong> <span style="color: #0f172a; font-size: 15px; margin-left: 8px; font-weight: 600;">$${trueTotalPrice.toFixed(2)}</span></div>
-                                                            
-                                                            <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
-                                                                <strong style="color: #475569; font-size: 13px; text-transform: uppercase; display: block; margin-bottom: 8px;">Customer Notes:</strong>
-                                                                <div style="background-color: #f8fafc; padding: 12px; border-radius: 4px; color: #334155; font-size: 14px; font-style: italic; white-space: pre-wrap;">${safeMessage || 'No additional notes provided.'}</div>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                </table>
-                                                
-                                                <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                                                    <tr>
-                                                        <td align="center">
-                                                            <a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/bookings" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 600; text-align: center; width: 100%; box-sizing: border-box;">Open Admin Portal</a>
-                                                        </td>
-                                                    </tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-                    </body>
-                    </html>
-                `;
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f1f5f9">
+<tr>
+<td align="center" style="padding:30px 20px;">
+
+<table width="650" cellpadding="0" cellspacing="0" style="max-width:650px;background:#ffffff;border-radius:10px;overflow:hidden;border-top:4px solid #2563eb;box-shadow:0 4px 20px rgba(0,0,0,0.05);">
+
+<tr>
+<td style="padding:30px;">
+<h2 style="margin:0 0 10px 0;color:#111827;font-size:22px;">
+New Booking Request
+</h2>
+<p style="margin:0;color:#6b7280;font-size:14px;">
+Reference: <strong>${newBooking.reference_code}</strong>
+</p>
+</td>
+</tr>
+
+<tr>
+<td style="padding:0 30px 25px 30px;">
+<div style="border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:20px;">
+<h3 style="margin:0 0 15px 0;font-size:14px;color:#374151;text-transform:uppercase;">
+Customer Details
+</h3>
+
+<p style="margin:6px 0;"><strong>Name:</strong> ${safeName}</p>
+<p style="margin:6px 0;"><strong>Email:</strong> ${safeEmail}</p>
+<p style="margin:6px 0;"><strong>Phone:</strong> ${safePhone}</p>
+<p style="margin:6px 0;"><strong>Preferred Contact:</strong> ${safeContactMethod}</p>
+</div>
+
+<div style="border:1px solid #e2e8f0;border-radius:8px;padding:20px;">
+<h3 style="margin:0 0 15px 0;font-size:14px;color:#374151;text-transform:uppercase;">
+Booking Details
+</h3>
+
+<p style="margin:6px 0;"><strong>Tour:</strong> ${tourName}</p>
+<p style="margin:6px 0;"><strong>Guests:</strong> ${safeGuests} Adults${safeChildren > 0 ? `, ${safeChildren} Children` : ''}</p>
+<p style="margin:6px 0;"><strong>Quoted Total:</strong> $${trueTotalPrice.toFixed(2)}</p>
+
+<div style="margin-top:15px;padding-top:15px;border-top:1px solid #e2e8f0;">
+<strong>Customer Notes:</strong>
+<div style="background:#f8fafc;padding:12px;border-radius:6px;margin-top:8px;font-style:italic;">
+${safeMessage || 'No additional notes provided.'}
+</div>
+</div>
+
+</div>
+</td>
+</tr>
+
+<tr>
+<td style="padding:0 30px 30px 30px;">
+<a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/bookings"
+style="display:inline-block;background:#111827;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
+Open Admin Dashboard
+</a>
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+`;
 
                 // Parallel email sending
                 await Promise.all([
@@ -297,7 +328,6 @@ export async function POST(request) {
 
             } catch (emailError) {
                 console.error('Email dispatch error:', emailError);
-                // Do not throw; the booking was successfully saved.
             }
         } else {
             console.warn('Resend API key missing. Skipping email notifications.');
@@ -316,15 +346,12 @@ export async function POST(request) {
     }
 }
 
-// GET — admin only (returns customer PII)
+// GET — admin only
 export async function GET(request) {
     try {
         const authenticated = await isAuthenticated();
         if (!authenticated) {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            );
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const db = getDb();
@@ -335,22 +362,16 @@ export async function GET(request) {
         return NextResponse.json({ bookings });
     } catch (error) {
         console.error('Error fetching bookings:', error.message);
-        return NextResponse.json(
-            { error: 'Failed to fetch bookings' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to fetch bookings' }, { status: 500 });
     }
 }
 
-// PUT — admin only (update status/notes)
+// PUT — admin only
 export async function PUT(request) {
     try {
         const authenticated = await isAuthenticated();
         if (!authenticated) {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            );
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const body = await request.json();
@@ -358,46 +379,28 @@ export async function PUT(request) {
 
         const safeId = parseInt(id, 10);
         if (Number.isNaN(safeId) || safeId < 1) {
-            return NextResponse.json(
-                { error: 'Invalid booking ID' },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: 'Invalid booking ID' }, { status: 400 });
         }
 
         if (!status && admin_note === undefined) {
-            return NextResponse.json(
-                { error: 'No update data provided (status or admin_note)' },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: 'No update data provided' }, { status: 400 });
         }
 
-        // Validate status against whitelist
         if (status && !VALID_STATUSES.includes(status)) {
-            return NextResponse.json(
-                { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
         }
 
         const db = getDb();
         const updates = {};
 
-        if (status) {
-            updates.status = status;
-        }
-
-        if (admin_note !== undefined) {
-            updates.admin_note = String(admin_note).trim().slice(0, 5000);
-        }
+        if (status) updates.status = status;
+        if (admin_note !== undefined) updates.admin_note = String(admin_note).trim().slice(0, 5000);
 
         await db.update(bookingsSchema).set(updates).where(eq(bookingsSchema.id, safeId));
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error updating booking:', error.message);
-        return NextResponse.json(
-            { error: 'Failed to update booking' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 });
     }
 }
