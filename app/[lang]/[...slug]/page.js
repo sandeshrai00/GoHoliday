@@ -127,7 +127,7 @@ export default async function SeoLandingPage({ params }) {
                 '@type': 'ListItem',
                 position: 3,
                 name: pageData.title,
-                item: `https://goholidays.me/${lang}/${slug.join('/')}`
+                item: `https://goholidays.me/${lang}/${slug}`
             }
         ]
     };
@@ -135,12 +135,12 @@ export default async function SeoLandingPage({ params }) {
     return (
         <main className="min-h-screen bg-gray-50 flex flex-col pb-20">
             <Script
-                id={`faq-schema-${slug.join('-')}`}
+                id={`faq-schema-${slug.replace(/\//g, '-')}`}
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
             />
             <Script
-                id={`breadcrumb-schema-${slug.join('-')}`}
+                id={`breadcrumb-schema-${slug.replace(/\//g, '-')}`}
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
             />
