@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ClerkClientProvider from "./components/ClerkClientProvider";
 
 export const metadata: Metadata = {
   title: "vinext on Cloudflare Workers",
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ClerkClientProvider>{children}</ClerkClientProvider>
+      </body>
     </html>
   );
 }

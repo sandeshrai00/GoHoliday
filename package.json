@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "npm@11.19.0",
   "dependencies": {
+    "@clerk/react": "^6.16.1",
     "@vinext/cloudflare": "latest",
     "react": "latest",
     "react-dom": "latest",
