@@ -97,7 +97,7 @@ Shared: `AuthCard` (brand header), `AuthTabs` (Radix Tabs), `GoogleButton`, `Otp
 
 | Page | URL | Components |
 |---|---|---|
-| Profile | `/profile` | `ProfileHeader` (Avatar+name+email) · `ProfileEditForm` (name/image → `user.setProfile`) · sign out |
+| Profile | `/profile` | Tabs: Profile (`ProfileImageCard` → `user.setProfileImage`, name form → `user.update`, `EmailsCard` → `createEmailAddress`+code verify, Link Google → `createExternalAccount`) · Security (`ChangePasswordForm` → `user.updatePassword`, `SessionsCard` → `user.getSessions`+`revoke`) · Danger (`DeleteAccount` → `user.delete`) |
 | Bookings | `/bookings` | `AccountNav` · `BookingsList` · `BookingCard` · `StatusBadge` (data: Supabase) |
 | Booking detail | `/bookings/[id]` | `BookingDetail` · `VoucherDownload` (PDF + QR) |
 | Wishlist | `/wishlist` | `WishlistGrid` (saved `PackageCard`) |
