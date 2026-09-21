@@ -1,6 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/react";
+import { isReverificationCancelledError } from "@clerk/react/errors";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,10 +19,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { errMsg } from "@/lib/clerk-errors";
+import { useReverifyAction } from "./reverify-action";
 
 const schema = z
   .object({
-    currentPassword: z.string(),
     newPassword: z.string().min(15, "Password must be at least 15 characters"),
     confirm: z.string().min(1, "Confirm your new password"),
   })
@@ -37,69 +38,58 @@ export default function ChangePasswordForm() {
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { currentPassword: "", newPassword: "", confirm: "" },
+    defaultValues: { newPassword: "", confirm: "" },
   });
+
+  // ponytail: Clerk API enforces reverification (10m window) on password set/update;
+  // without this wrapper a stale session fails with an opaque 403. Renders OUR
+  // dialog (reverify-dialog) instead of Clerk's default modal.
+  const { run: updatePassword, dialog: reverifyDialog } = useReverifyAction(
+    async (values: { newPassword: string }) => {
+      if (!user) throw new Error("Not signed in");
+      // ponytail: no current-password field — the modal IS the proof (Clerk PR #5284:
+      // asking again after reverification is redundant). Google-only path unchanged.
+      return hasPassword
+        ? user.updatePassword({
+            newPassword: values.newPassword,
+            signOutOfOtherSessions: true,
+          })
+        : user.updatePassword({ newPassword: values.newPassword });
+    },
+    { title: "Verify it's you", description: "Confirm your password to change it." },
+  );
 
   if (!user) return null;
 
   const onSubmit = async (values: z.infer<typeof schema>) => {
-    if (hasPassword && !values.currentPassword) {
-      form.setError("currentPassword", { message: "Enter your current password" });
-      return;
-    }
     try {
       // ponytail: always sign out other sessions on password change (secure default, no checkbox ui)
-      await user.updatePassword(
-        hasPassword
-          ? {
-              currentPassword: values.currentPassword,
-              newPassword: values.newPassword,
-              signOutOfOtherSessions: true,
-            }
-          : { newPassword: values.newPassword },
-      );
+      await updatePassword({ newPassword: values.newPassword });
       form.reset();
       toast.success(
         hasPassword ? "Password changed. Other devices were signed out." : "Password added.",
       );
     } catch (err) {
+      if (isReverificationCancelledError(err)) return;
       toast.error(errMsg(err, "Could not change password. Please try again."));
     }
   };
 
   return (
-    <Card>
+    <>
+      {reverifyDialog}
+      <Card>
       <CardHeader>
         <CardTitle>{hasPassword ? "Change password" : "Add a password"}</CardTitle>
         <CardDescription>
           {hasPassword
-            ? "Use at least 15 characters. Other devices will be signed out."
+            ? "Use at least 15 characters. Other devices will be signed out. If your session has expired, we'll ask you to verify it's you."
             : "You sign in with Google. Add a password to also sign in with email."}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-            {hasPassword ? (
-              <FormField
-                control={form.control}
-                name="currentPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Current password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        autoComplete="current-password"
-                        placeholder="•••••••••••••••"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ) : null}
             <FormField
               control={form.control}
               name="newPassword"
@@ -145,6 +135,7 @@ export default function ChangePasswordForm() {
           </form>
         </Form>
       </CardContent>
-    </Card>
+      </Card>
+    </>
   );
 }

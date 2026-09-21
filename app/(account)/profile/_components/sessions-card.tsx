@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession, useUser } from "@clerk/react";
+import { isReverificationCancelledError } from "@clerk/react/errors";
 import { Monitor, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -11,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { errMsg } from "@/lib/clerk-errors";
+import { useReverifyAction } from "./reverify-action";
 
 interface DeviceSession {
   id: string;
@@ -61,6 +63,32 @@ export default function SessionsCard() {
     };
   }, [user]);
 
+  // ponytail: Clerk API enforces reverification (10m window) on session revocation;
+  // without these wrappers a stale session fails with an opaque 403.
+  // The hook always runs the latest render's closure, so `sessions` here is fresh.
+  // Both render OUR dialog (reverify-dialog) instead of Clerk's default modal.
+  const { run: revokeSession, dialog: revokeDialog } = useReverifyAction(
+    async (id: string) => {
+      const target = sessions?.find((s) => s.id === id);
+      if (!target) return;
+      await target.revoke();
+    },
+    {
+      title: "Verify it's you",
+      description: "Confirm your password to sign out this device.",
+    },
+  );
+  const { run: revokeAllOthers, dialog: revokeAllDialog } = useReverifyAction(
+    async () => {
+      const others = (sessions ?? []).filter((s) => s.id !== session?.id);
+      await Promise.all(others.map((s) => s.revoke()));
+    },
+    {
+      title: "Verify it's you",
+      description: "Confirm your password to sign out all other devices.",
+    },
+  );
+
   if (!user) return null;
   const currentId = session?.id;
 
@@ -69,11 +97,13 @@ export default function SessionsCard() {
     if (!target) return;
     setRevoking(id);
     try {
-      await target.revoke();
+      await revokeSession(id);
       setSessions((prev) => (prev ?? []).filter((s) => s.id !== id));
       toast.success("Device signed out.");
     } catch (err) {
-      toast.error(errMsg(err, "Could not sign out that device."));
+      if (!isReverificationCancelledError(err)) {
+        toast.error(errMsg(err, "Could not sign out that device."));
+      }
     } finally {
       setRevoking(null);
     }
@@ -84,11 +114,13 @@ export default function SessionsCard() {
     if (others.length === 0) return;
     setRevoking("others");
     try {
-      await Promise.all(others.map((s) => s.revoke()));
-      setSessions((prev) => (prev ?? []).filter((s) => s.id === currentId));
+      await revokeAllOthers();
+      setSessions((prev) => (prev ?? []).filter((s) => s.id !== currentId));
       toast.success("All other devices signed out.");
     } catch (err) {
-      toast.error(errMsg(err, "Could not sign out other devices."));
+      if (!isReverificationCancelledError(err)) {
+        toast.error(errMsg(err, "Could not sign out other devices."));
+      }
     } finally {
       setRevoking(null);
     }
@@ -97,9 +129,12 @@ export default function SessionsCard() {
   const othersCount = (sessions ?? []).filter((s) => s.id !== currentId).length;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Signed-in devices</CardTitle>
+    <>
+      {revokeDialog}
+      {revokeAllDialog}
+      <Card>
+        <CardHeader>
+          <CardTitle>Signed-in devices</CardTitle>
         <CardDescription>Every device currently signed in to your account.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -162,5 +197,6 @@ export default function SessionsCard() {
         ) : null}
       </CardContent>
     </Card>
+    </>
   );
 }

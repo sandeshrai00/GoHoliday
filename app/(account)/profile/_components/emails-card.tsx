@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useUser } from "@clerk/react";
+import { isReverificationCancelledError } from "@clerk/react/errors";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { errMsg } from "@/lib/clerk-errors";
+import { useReverifyAction } from "./reverify-action";
 
 export default function EmailsCard() {
   const { user } = useUser();
@@ -20,6 +22,23 @@ export default function EmailsCard() {
   const [pending, setPending] = useState(false);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [code, setCode] = useState("");
+
+  // ponytail: Clerk API enforces reverification (10m window) on adding an email;
+  // without this wrapper a stale session fails with an opaque 403. Renders OUR
+  // dialog (reverify-dialog) instead of Clerk's default modal.
+  const { run: addNewEmail, dialog: reverifyDialog } = useReverifyAction(
+    async (email: string) => {
+      if (!user) throw new Error("Not signed in");
+      const created = await user.createEmailAddress({ email });
+      await created.prepareVerification({ strategy: "email_code" });
+      await user.reload();
+      return created.id;
+    },
+    {
+      title: "Verify it's you",
+      description: "Confirm your password before adding a new email address.",
+    },
+  );
 
   if (!user) return null;
 
@@ -33,13 +52,11 @@ export default function EmailsCard() {
     }
     setPending(true);
     try {
-      const created = await user.createEmailAddress({ email: value });
-      await created.prepareVerification({ strategy: "email_code" });
-      await user.reload();
-      setVerifyingId(created.id);
+      setVerifyingId(await addNewEmail(value));
       setEmail("");
       toast.success("Verification code sent.");
     } catch (err) {
+      if (isReverificationCancelledError(err)) return;
       toast.error(errMsg(err, "Could not add email. Please try again."));
     } finally {
       setPending(false);
@@ -66,9 +83,11 @@ export default function EmailsCard() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Email addresses</CardTitle>
+    <>
+      {reverifyDialog}
+      <Card>
+        <CardHeader>
+          <CardTitle>Email addresses</CardTitle>
         <CardDescription>Sign-in emails on your account.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
@@ -136,5 +155,6 @@ export default function EmailsCard() {
         )}
       </CardContent>
     </Card>
+    </>
   );
 }

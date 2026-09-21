@@ -1,6 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/react";
+import { isReverificationCancelledError } from "@clerk/react/errors";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { errMsg } from "@/lib/clerk-errors";
+import { useReverifyAction } from "./_components/reverify-action";
 import ChangePasswordForm from "./_components/change-password-form";
 import DeleteAccount from "./_components/delete-account";
 import EmailsCard from "./_components/emails-card";
@@ -41,6 +43,23 @@ export default function ProfilePage() {
       lastName: user?.lastName ?? "",
     },
   });
+
+  // ponytail: Clerk API enforces reverification (10m window) on connecting an
+  // external account; without this wrapper a stale session fails with an opaque 403.
+  // Renders OUR dialog (reverify-dialog) instead of Clerk's default modal.
+  const { run: linkGoogleAccount, dialog: linkGoogleDialog } = useReverifyAction(
+    async () => {
+      if (!user) throw new Error("Not signed in");
+      await user.createExternalAccount({
+        strategy: "oauth_google",
+        redirectUrl: `${window.location.origin}/auth/callback`,
+      });
+    },
+    {
+      title: "Verify it's you",
+      description: "Confirm your password before connecting your Google account.",
+    },
+  );
 
   if (!isLoaded) {
     return (
@@ -69,17 +88,16 @@ export default function ProfilePage() {
 
   const linkGoogle = async () => {
     try {
-      await user.createExternalAccount({
-        strategy: "oauth_google",
-        redirectUrl: `${window.location.origin}/auth/callback`,
-      });
+      await linkGoogleAccount();
     } catch (e) {
+      if (isReverificationCancelledError(e)) return;
       toast.error(errMsg(e, "Could not start Google linking. Please try again."));
     }
   };
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-10">
+      {linkGoogleDialog}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
         <p className="mt-1 text-muted-foreground">Manage your account details and security.</p>
@@ -89,7 +107,6 @@ export default function ProfilePage() {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="danger">Danger zone</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-4 flex flex-col gap-6">
@@ -177,9 +194,6 @@ export default function ProfilePage() {
         <TabsContent value="security" className="mt-4 flex flex-col gap-6">
           <ChangePasswordForm />
           <SessionsCard />
-        </TabsContent>
-
-        <TabsContent value="danger" className="mt-4">
           <DeleteAccount />
         </TabsContent>
       </Tabs>
