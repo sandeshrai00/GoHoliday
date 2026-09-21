@@ -144,12 +144,12 @@ Cross-feature business components (`components/site/`): `PackageCard`, `StarRati
 ## 5. Phases (you drive; build phase by phase)
 
 0. **Foundation** — shadcn `init` + tokens + `cn` + providers + initial component set + `types`/`constants` (+ ESLint boundary).
-1. **Auth** — `(auth)` pages, `Profile`, `UserMenu`+`Header`+`Footer`, replace `AuthControls`. ← starts here. (needs Clerk dashboard toggles)
+1. **Auth** — `(auth)` pages, `Profile`, `UserMenu`+`Header`+`Footer`, replace `AuthControls`. ← starts here. (needs Clerk dashboard toggles) + server-side auth layer DONE (`lib/auth.ts` via `@clerk/backend`, `role` session claim, `(admin)` server-gated, founder=admin) + Device Trust DONE (instance auto-enabled; `sign-in` handles `needs_client_trust` via `mfa` email code, explicit dead-end branches, `currentTask` guard) + resend cooldown DONE (`lib/use-resend-cooldown.ts`, Clerk's 30s standard, all 3 auth pages; `longMessage` error surfacing via shared `lib/clerk-errors.ts`).
 2. **Public site** — `(public)` on mock data (`lib/data/packages.ts`).
 3. **Supabase** — native Clerk↔Supabase integration (the earlier plan), schema + RLS, swap mock → real data, booking creation (pending), user bookings, wishlist.
 4. **Account** — `/bookings`, `/bookings/[id]` + PDF voucher.
 5. **Admin** — `(admin)` all pages on service-role data + TanStack Table.
-6. **Extras** — seasonal pricing engine, reviews + media uploads, WhatsApp widget, CSV/Excel export, RBAC roles, Resend triggers.
+6. **Extras** — seasonal pricing engine, reviews + media uploads, WhatsApp widget, CSV/Excel export, Resend triggers. (RBAC role foundation already in: metadata role + session claim + server gate; per-resource permissions only if needed.)
 
 ## 6. Before I build — confirm
 

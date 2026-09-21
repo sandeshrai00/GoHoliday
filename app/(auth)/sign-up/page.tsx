@@ -24,6 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthCard from "../_components/auth-card";
 import GoogleButton from "../_components/google-button";
 import OtpInput from "../_components/otp-input";
+import { errMsg } from "@/lib/clerk-errors";
+import { useResendCooldown } from "@/lib/use-resend-cooldown";
 
 const passwordSchema = z.object({
   firstName: z.string().min(1, "Enter your first name"),
@@ -39,13 +41,6 @@ const emailCodeSchema = z.object({
   emailAddress: z.string().email("Enter a valid email address"),
   terms: z.boolean().refine((v) => v, "Please accept the Terms to continue"),
 });
-
-function errMsg(err: unknown, fallback: string): string {
-  if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
-    return (err as { message: string }).message;
-  }
-  return fallback;
-}
 
 function TermsCheckbox({
   checked,
@@ -86,6 +81,7 @@ export default function SignUpPage() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const { cooldown, start: startResendCooldown } = useResendCooldown();
 
   const busy = fetchStatus === "fetching" || sending;
 
@@ -136,6 +132,7 @@ export default function SignUpPage() {
       setCode("");
       setCodeError(null);
       setVerifying(true);
+      startResendCooldown();
       return true;
     } catch (e) {
       setNotice(errMsg(e, "Could not send a verification code. Please try again."));
@@ -285,10 +282,10 @@ export default function SignUpPage() {
               <button
                 type="button"
                 onClick={() => beginEmailVerification(pendingEmail)}
-                disabled={busy || !pendingEmail}
+                disabled={busy || !pendingEmail || cooldown > 0}
                 className="text-primary hover:underline disabled:opacity-50"
               >
-                Resend code
+                {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
               </button>
               <button type="button" onClick={resetVerify} className="text-muted-foreground hover:underline">
                 Back

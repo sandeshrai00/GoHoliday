@@ -4,10 +4,12 @@ import { useRef, useState, type ChangeEvent } from "react";
 import { useUser } from "@clerk/react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { errMsg } from "@/lib/clerk-errors";
+import { userRole } from "@/lib/roles";
 
 export default function ProfileImageCard() {
   const { user } = useUser();
@@ -69,7 +71,12 @@ export default function ProfileImageCard() {
             <AvatarImage src={user.imageUrl} alt={name} />
             <AvatarFallback className="text-lg">{initials}</AvatarFallback>
           </Avatar>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{name}</span>
+              {userRole(user) === "admin" ? <Badge>Admin</Badge> : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
             <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
             <Button variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
               {busy ? <Spinner /> : null}
@@ -80,6 +87,7 @@ export default function ProfileImageCard() {
                 Remove
               </Button>
             ) : null}
+            </div>
           </div>
         </div>
       </CardContent>

@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import AuthCard from "../_components/auth-card";
 import OtpInput from "../_components/otp-input";
+import { errMsg } from "@/lib/clerk-errors";
+import { useResendCooldown } from "@/lib/use-resend-cooldown";
 
 const emailSchema = z.object({
   emailAddress: z.string().email("Enter a valid email address"),
@@ -36,13 +38,6 @@ const passwordSchema = z
     path: ["confirmPassword"],
   });
 
-function errMsg(err: unknown, fallback: string): string {
-  if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
-    return (err as { message: string }).message;
-  }
-  return fallback;
-}
-
 export default function ForgotPasswordPage() {
   const { isLoaded: authLoaded } = useAuth();
   const { signIn, fetchStatus } = useSignIn();
@@ -53,6 +48,7 @@ export default function ForgotPasswordPage() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const { cooldown, start: startResendCooldown } = useResendCooldown();
 
   const busy = fetchStatus === "fetching" || sending;
 
@@ -85,6 +81,7 @@ export default function ForgotPasswordPage() {
         setNotice(errMsg(error, "Could not send a code. Please try again."));
         return false;
       }
+      startResendCooldown();
       return true;
     } catch (e) {
       setNotice(errMsg(e, "Could not send a code. Please try again."));
@@ -197,10 +194,10 @@ export default function ForgotPasswordPage() {
               <button
                 type="button"
                 onClick={sendResetCode}
-                disabled={busy}
+                disabled={busy || cooldown > 0}
                 className="text-primary hover:underline disabled:opacity-50"
               >
-                Resend code
+                {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
               </button>
               <button
                 type="button"

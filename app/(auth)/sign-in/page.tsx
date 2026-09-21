@@ -24,6 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthCard from "../_components/auth-card";
 import GoogleButton from "../_components/google-button";
 import OtpInput from "../_components/otp-input";
+import { errMsg } from "@/lib/clerk-errors";
+import { useResendCooldown } from "@/lib/use-resend-cooldown";
 
 const passwordSchema = z.object({
   identifier: z.string().email("Enter a valid email address"),
@@ -34,24 +36,18 @@ const emailSchema = z.object({
   emailAddress: z.string().email("Enter a valid email address"),
 });
 
-function errMsg(err: unknown, fallback: string): string {
-  if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
-    return (err as { message: string }).message;
-  }
-  return fallback;
-}
-
 export default function SignInPage() {
   const { isLoaded: authLoaded } = useAuth();
   const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
 
-  const [verifying, setVerifying] = useState(false);
+  const [verifyMode, setVerifyMode] = useState<"email-code" | "device-trust" | null>(null);
   const [pendingEmail, setPendingEmail] = useState("");
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const { cooldown, start: startResendCooldown } = useResendCooldown();
 
   const busy = fetchStatus === "fetching" || sending;
 
@@ -78,7 +74,13 @@ export default function SignInPage() {
   const finalizeToProfile = async () => {
     try {
       await signIn.finalize({
-        navigate: async ({ decorateUrl }) => {
+        navigate: async ({ session, decorateUrl }) => {
+          if (session?.currentTask) {
+            // Rare: Clerk wants the user to finish an onboarding step first.
+            console.warn("Sign in finalized with pending session task:", session.currentTask.key);
+            setNotice("Sign in needs one more step to finish. Please contact support.");
+            return;
+          }
           const url = decorateUrl("/profile");
           if (url.startsWith("http")) window.location.href = url;
           else router.push(url);
@@ -98,9 +100,29 @@ export default function SignInPage() {
         setNotice(errMsg(error, "Could not send a code. Please try again."));
         return false;
       }
+      startResendCooldown();
       return true;
     } catch (e) {
       setNotice(errMsg(e, "Could not send a code. Please try again."));
+      return false;
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendDeviceTrustCode = async (): Promise<boolean> => {
+    setNotice(null);
+    setSending(true);
+    try {
+      const { error } = await signIn.mfa.sendEmailCode();
+      if (error) {
+        setNotice(errMsg(error, "Could not send a verification code. Please try again."));
+        return false;
+      }
+      startResendCooldown();
+      return true;
+    } catch (e) {
+      setNotice(errMsg(e, "Could not send a verification code. Please try again."));
       return false;
     } finally {
       setSending(false);
@@ -119,12 +141,22 @@ export default function SignInPage() {
     }
     if (signIn.status === "complete") {
       await finalizeToProfile();
-    } else {
-      // Extra verification required (e.g. new device) → email-code step.
+    } else if (signIn.status === "needs_client_trust") {
+      // New/unrecognized device → Device Trust requires an email code (second factor).
+      const emailCodeFactor = signIn.supportedSecondFactors.find((f) => f.strategy === "email_code");
+      if (!emailCodeFactor) {
+        setNotice("We couldn't verify this device. Try signing in with an email code instead.");
+        return;
+      }
       setPendingEmail(values.identifier);
       setCode("");
       setCodeError(null);
-      if (await sendCode(values.identifier)) setVerifying(true);
+      if (await sendDeviceTrustCode()) setVerifyMode("device-trust");
+    } else if (signIn.status === "needs_second_factor") {
+      setNotice("This account needs multi-factor authentication, which isn't set up here yet. Please contact support.");
+    } else {
+      console.warn("Sign in attempt not complete:", signIn.status);
+      setNotice("Sign in needs an extra step we don't support yet. Please try again or contact support.");
     }
   };
 
@@ -133,16 +165,24 @@ export default function SignInPage() {
     setPendingEmail(values.emailAddress);
     setCode("");
     setCodeError(null);
-    if (await sendCode(values.emailAddress)) setVerifying(true);
+    if (await sendCode(values.emailAddress)) setVerifyMode("email-code");
   };
 
   const onVerifyCode = async () => {
     setCodeError(null);
     setNotice(null);
-    const { error } = await signIn.emailCode.verifyCode({ code });
-    if (error) {
-      setCodeError(errMsg(error, errors?.fields?.code?.message ?? "Invalid code. Please try again."));
-      return;
+    if (verifyMode === "device-trust") {
+      const { error } = await signIn.mfa.verifyEmailCode({ code });
+      if (error) {
+        setCodeError(errMsg(error, errors?.fields?.code?.message ?? "Invalid code. Please try again."));
+        return;
+      }
+    } else {
+      const { error } = await signIn.emailCode.verifyCode({ code });
+      if (error) {
+        setCodeError(errMsg(error, errors?.fields?.code?.message ?? "Invalid code. Please try again."));
+        return;
+      }
     }
     if (signIn.status === "complete") {
       await finalizeToProfile();
@@ -151,8 +191,13 @@ export default function SignInPage() {
     }
   };
 
+  const onResend = async () => {
+    if (verifyMode === "device-trust") await sendDeviceTrustCode();
+    else if (pendingEmail) await sendCode(pendingEmail);
+  };
+
   const resetVerify = () => {
-    setVerifying(false);
+    setVerifyMode(null);
     setCode("");
     setCodeError(null);
   };
@@ -174,10 +219,19 @@ export default function SignInPage() {
           </Alert>
         )}
 
-        {verifying ? (
+        {verifyMode ? (
           <div className="grid gap-4">
             <p className="text-sm text-muted-foreground">
-              We sent a 6-digit code to <span className="font-medium text-foreground">{pendingEmail}</span>.
+              {verifyMode === "device-trust" ? (
+                <>
+                  New or unrecognized device — we sent a 6-digit code to{" "}
+                  <span className="font-medium text-foreground">your email address</span>.
+                </>
+              ) : (
+                <>
+                  We sent a 6-digit code to <span className="font-medium text-foreground">{pendingEmail}</span>.
+                </>
+              )}
             </p>
             <OtpInput
               id="signin-code"
@@ -196,11 +250,11 @@ export default function SignInPage() {
             <div className="flex items-center justify-between text-sm">
               <button
                 type="button"
-                onClick={() => pendingEmail && sendCode(pendingEmail)}
-                disabled={busy || !pendingEmail}
+                onClick={onResend}
+                disabled={busy || !pendingEmail || cooldown > 0}
                 className="text-primary hover:underline disabled:opacity-50"
               >
-                Resend code
+                {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
               </button>
               <button type="button" onClick={resetVerify} className="text-muted-foreground hover:underline">
                 Back
