@@ -53,6 +53,62 @@ export const packageSchema = z.object({
 
 export type PackageFormValues = z.infer<typeof packageSchema>;
 
+export const hotelRoomSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  /** Dollars in the form, converted to cents server-side. */
+  price_per_night_usd: z.number().min(1).max(100000),
+  max_guests: z.number().int().min(1).max(10),
+  description: z.string().trim().max(500).default(""),
+});
+
+export const hotelSchema = z.object({
+  name: z.string().trim().min(3).max(120),
+  slug: z
+    .string()
+    .trim()
+    .max(140)
+    .regex(/^[a-z0-9-]*$/, "Slug: lowercase letters, numbers, hyphens only")
+    .optional(),
+  location: z.string().trim().min(2).max(120),
+  region: z.string().trim().max(80).default("Thailand"),
+  star_rating: z.number().int().min(1).max(5).default(3),
+  short_description: z.string().trim().min(10).max(300),
+  description: z.string().trim().max(8000).default(""),
+  gallery_urls: z.array(z.string().trim().url().max(500)).max(12).default([]),
+  amenities: lines(30),
+  check_in_time: z
+    .string()
+    .trim()
+    .regex(/^\d{2}:\d{2}$/, "Check-in: HH:MM")
+    .default("14:00"),
+  check_out_time: z
+    .string()
+    .trim()
+    .regex(/^\d{2}:\d{2}$/, "Check-out: HH:MM")
+    .default("12:00"),
+  room_types: z.array(hotelRoomSchema).min(1).max(8),
+  policies: z.string().trim().max(4000).default(""),
+  status: z.enum(["draft", "published"]).default("draft"),
+  featured: z.boolean().default(false),
+});
+
+export type HotelFormValues = z.infer<typeof hotelSchema>;
+
+export const hotelBookingInputSchema = z.object({
+  hotel_id: z.string().uuid(),
+  room_type_name: z.string().trim().min(1).max(80),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  adults: z.number().int().min(1).max(20),
+  children: z.number().int().min(0).max(20).default(0),
+  rooms: z.number().int().min(1).max(20).default(1),
+  currency_code: z.enum(["USD", "EUR", "NPR", "THB"]),
+  contact_phone: z.string().trim().max(30).optional(),
+  notes: z.string().trim().max(1000).optional(),
+});
+
+export type HotelBookingInput = z.infer<typeof hotelBookingInputSchema>;
+
 export const bookingStatusSchema = z.object({
   status: z.enum(["confirmed", "cancelled", "completed"]),
 });

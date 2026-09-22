@@ -2,6 +2,7 @@
 // Idempotent — safe to re-run (upserts on slug).
 import { createClient } from "@supabase/supabase-js";
 import { SEED_PACKAGES } from "../lib/data/seed-packages.ts";
+import { SEED_HOTEL_ROWS } from "../lib/data/seed-hotels.ts";
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -45,3 +46,12 @@ if (error) {
   process.exit(1);
 }
 console.log(`Seeded ${rows.length} packages (${rows.filter((r) => r.status === "published").length} published).`);
+
+const { error: hotelError } = await supabase.from("hotels").upsert(SEED_HOTEL_ROWS, { onConflict: "slug" });
+if (hotelError) {
+  console.error("Hotel seed failed:", hotelError.message);
+  process.exit(1);
+}
+console.log(
+  `Seeded ${SEED_HOTEL_ROWS.length} hotels (${SEED_HOTEL_ROWS.filter((r) => r.status === "published").length} published).`,
+);

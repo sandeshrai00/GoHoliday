@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, LayoutDashboard, Luggage, ReceiptText, Settings2 } from "lucide-react";
+import { ArrowLeft, BedDouble, CalendarCheck, LayoutDashboard, Luggage, ReceiptText, Settings2 } from "lucide-react";
 
 const LINKS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/packages", label: "Packages", icon: Luggage },
   { href: "/admin/bookings", label: "Bookings", icon: ReceiptText },
+  { href: "/admin/hotels", label: "Hotels", icon: BedDouble },
+  { href: "/admin/hotel-bookings", label: "Hotel bookings", icon: CalendarCheck },
   { href: "/admin/rates", label: "Rates", icon: Settings2 },
 ];
 

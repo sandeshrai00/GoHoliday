@@ -1,6 +1,6 @@
 import { createPackageAdmin, listPackagesAdmin } from "@/lib/admin";
 import { requireApiRole } from "@/lib/auth";
-import { parsePackageRequest } from "@/lib/r2";
+import { parseGalleryRequest } from "@/lib/r2";
 import { packageSchema } from "@/lib/validation";
 
 export async function GET(req: Request) {
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (me instanceof Response) return me;
   let body: unknown;
   try {
-    body = await parsePackageRequest(req);
+    body = await parseGalleryRequest(req);
   } catch (err) {
     const status = (err as Error & { status?: number }).status ?? 400;
     return Response.json({ error: err instanceof Error ? err.message : "Invalid request body" }, { status });

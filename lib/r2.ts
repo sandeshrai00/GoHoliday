@@ -1,5 +1,5 @@
 import { AwsClient } from "aws4fetch";
-import { MAX_IMAGE_BYTES, type PackageFormValues } from "@/lib/validation";
+import { MAX_IMAGE_BYTES } from "@/lib/validation";
 
 // ponytail: SERVER-ONLY — reads R2 secrets, never import from client components.
 // Uploads happen only when an admin saves a package (never on file-pick).
@@ -46,27 +46,28 @@ export async function uploadPackageImage(file: File): Promise<string> {
 }
 
 /**
- * Shared POST/PUT body parser: JSON as before, or multipart
- * (`data` = package JSON string, `files` = images) when the form has uploads.
- * Files are uploaded to R2 ONLY here — i.e. only on save, never on pick.
+ * Shared POST/PUT body parser for gallery-backed admin forms (packages AND hotels):
+ * JSON as before, or multipart (`data` = form JSON string, `files` = images)
+ * when the form has uploads. Files are uploaded to R2 ONLY here —
+ * i.e. only on save, never on pick. Callers run their own zod schema after.
  */
-export async function parsePackageRequest(req: Request): Promise<PackageFormValues> {
+export async function parseGalleryRequest(req: Request): Promise<Record<string, unknown>> {
   const contentType = req.headers.get("content-type") ?? "";
   if (!contentType.includes("multipart/form-data")) {
-    return (await req.json()) as PackageFormValues;
+    return (await req.json()) as Record<string, unknown>;
   }
   const form = await req.formData().catch(() => fail("Invalid request body", 400));
   const raw = form.get("data");
-  if (typeof raw !== "string") fail("Missing package data", 400);
+  if (typeof raw !== "string") fail("Missing form data", 400);
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    fail("Invalid package data", 400);
+    fail("Invalid form data", 400);
   }
   const existing = Array.isArray(data.gallery_urls) ? (data.gallery_urls as unknown[]) : [];
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
-  if (existing.length + files.length > 12) fail("A package holds at most 12 images", 400);
+  if (existing.length + files.length > 12) fail("A gallery holds at most 12 images", 400);
   const urls = await Promise.all(files.map(uploadPackageImage));
-  return { ...data, gallery_urls: [...existing, ...urls] } as PackageFormValues;
+  return { ...data, gallery_urls: [...existing, ...urls] };
 }

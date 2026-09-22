@@ -127,7 +127,8 @@ export async function listBookingsAdmin(status?: string): Promise<AdminBooking[]
   }));
 }
 
-const LEGAL_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+/** Shared with hotel booking status changes — one transition map. */
+export const LEGAL_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   pending: ["confirmed", "cancelled"],
   confirmed: ["completed", "cancelled"],
   cancelled: [],

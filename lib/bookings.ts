@@ -47,13 +47,15 @@ export async function ensureProfile(userId: string): Promise<void> {
 
 const REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
-function makeRef(): string {
+/** Shared with hotel bookings — one ref style across the site. */
+export function makeRef(): string {
   let ref = "GH-";
   for (let i = 0; i < 6; i++) ref += REF_ALPHABET[randomInt(REF_ALPHABET.length)];
   return ref;
 }
 
-function tomorrowUtc(): string {
+/** Shared with hotel bookings — same "book from tomorrow" rule. */
+export function tomorrowUtc(): string {
   return new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 }
 
