@@ -104,10 +104,10 @@ export default function BookingForm({ packageId, slug, title, destination, baseC
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <Button asChild>
-            <Link href="/packages">Browse more trips</Link>
+            <Link href={`/bookings/${booking.id}`}>View my booking</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href={`/packages/${slug}`}>Back to trip</Link>
+            <Link href="/packages">Browse more trips</Link>
           </Button>
         </div>
       </div>
