@@ -5,7 +5,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminFetch } from "../../../_components/admin-fetch";
-import { packageSchema, type PackageFormValues } from "@/lib/validation";
+import GalleryPicker from "./gallery-picker";
+import { MAX_IMAGE_BYTES, packageSchema, type PackageFormValues } from "@/lib/validation";
 import type { AdminPackage } from "@/lib/admin";
 
 interface Row {
@@ -42,7 +43,10 @@ export default function PackageForm({
   );
   const [groupSize, setGroupSize] = useState(initial?.max_group_size ? String(initial.max_group_size) : "");
   const [departure, setDeparture] = useState(initial?.departure_city ?? "");
-  const [gallery, setGallery] = useState((initial?.gallery ?? []).map((g) => g.url).join("\n"));
+  const [galleryUrls, setGalleryUrls] = useState<string[]>((initial?.gallery ?? []).map((g) => g.url));
+  const [urlDraft, setUrlDraft] = useState("");
+  // Picked files live ONLY in the browser until save — nothing uploads on pick.
+  const [files, setFiles] = useState<File[]>([]);
   const [highlights, setHighlights] = useState((initial?.highlights ?? []).join("\n"));
   const [includes, setIncludes] = useState((initial?.includes ?? []).join("\n"));
   const [excludes, setExcludes] = useState((initial?.excludes ?? []).join("\n"));
@@ -53,6 +57,44 @@ export default function PackageForm({
   const [policies, setPolicies] = useState(initial?.policies ?? "");
   const [status, setStatus] = useState<"draft" | "published">(initial?.status ?? "draft");
   const [featured, setFeatured] = useState(initial?.featured ?? false);
+
+  const pickFiles = (picked: FileList | null) => {
+    if (!picked) return;
+    setError(null);
+    const next = [...files];
+    for (const f of picked) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) {
+        setError(`"${f.name}" is not a JPEG, PNG or WebP image.`);
+        return;
+      }
+      if (f.size > MAX_IMAGE_BYTES) {
+        setError(`"${f.name}" is over 5 MB.`);
+        return;
+      }
+      if (galleryUrls.length + next.length >= 12) {
+        setError("A package holds at most 12 images.");
+        return;
+      }
+      next.push(f);
+    }
+    setFiles(next);
+  };
+
+  const addUrl = () => {
+    const url = urlDraft.trim();
+    if (!url) return;
+    if (!/^https?:\/\//.test(url)) {
+      setError("Gallery URLs must start with http(s)://");
+      return;
+    }
+    if (galleryUrls.length + files.length >= 12) {
+      setError("A package holds at most 12 images.");
+      return;
+    }
+    setError(null);
+    setGalleryUrls((u) => (u.includes(url) ? u : [...u, url]));
+    setUrlDraft("");
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +112,7 @@ export default function PackageForm({
       base_price_usd: Number(priceUsd),
       max_group_size: groupSize.trim() ? Number(groupSize) : null,
       departure_city: departure,
-      gallery_urls: toLines(gallery),
+      gallery_urls: galleryUrls,
       highlights: toLines(highlights),
       itinerary: rows
         .filter((r) => r.title.trim())
@@ -92,11 +134,25 @@ export default function PackageForm({
       setError("Gallery URLs must start with http(s)://");
       return;
     }
+    if (parsed.data.gallery_urls.length + files.length > 12) {
+      setError("A package holds at most 12 images.");
+      return;
+    }
     setSaving(true);
     try {
+      // Uploads ride along ONLY on save: files as multipart, otherwise today's JSON.
+      const body =
+        files.length > 0
+          ? (() => {
+              const form = new FormData();
+              form.append("data", JSON.stringify(parsed.data));
+              for (const f of files) form.append("files", f);
+              return form;
+            })()
+          : JSON.stringify(parsed.data);
       const res = await adminFetch(getToken, initial ? `/packages/${initial.id}` : "/packages", {
         method: initial ? "PUT" : "POST",
-        body: JSON.stringify(parsed.data),
+        body,
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -141,7 +197,35 @@ export default function PackageForm({
       </div>
       <label className={label}>Short description*<textarea value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} rows={2} maxLength={300} required className={area} /></label>
       <label className={label}>Full description<textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={area} /></label>
-      <label className={label}>Gallery URLs (one per line)<textarea value={gallery} onChange={(e) => setGallery(e.target.value)} rows={3} placeholder="https://…" className={area} /></label>
+      <div>
+        <p className={label}>Gallery</p>
+        <div className="mt-2">
+          <GalleryPicker
+            urls={galleryUrls}
+            files={files}
+            max={12}
+            onPick={pickFiles}
+            onRemoveUrl={(i) => setGalleryUrls((u) => u.filter((_, j) => j !== i))}
+            onRemoveFile={(i) => setFiles((fs) => fs.filter((_, j) => j !== i))}
+          />
+        </div>
+        <div className="mt-2 flex gap-2">
+          <Input
+            value={urlDraft}
+            onChange={(e) => setUrlDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addUrl();
+              }
+            }}
+            placeholder="…or paste an image URL and press Add"
+          />
+          <Button type="button" variant="outline" onClick={addUrl}>
+            Add
+          </Button>
+        </div>
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className={label}>Highlights (one per line)<textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} rows={4} className={area} /></label>
         <label className={label}>Included (one per line)<textarea value={includes} onChange={(e) => setIncludes(e.target.value)} rows={4} className={area} /></label>

@@ -1,5 +1,6 @@
 import { deletePackageAdmin, updatePackageAdmin } from "@/lib/admin";
 import { requireApiRole } from "@/lib/auth";
+import { parsePackageRequest } from "@/lib/r2";
 import { packageSchema } from "@/lib/validation";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -8,9 +9,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { id } = await params;
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
+    body = await parsePackageRequest(req);
+  } catch (err) {
+    const status = (err as Error & { status?: number }).status ?? 400;
+    return Response.json({ error: err instanceof Error ? err.message : "Invalid request body" }, { status });
   }
   const parsed = packageSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: "Invalid package details" }, { status: 400 });

@@ -7,8 +7,10 @@ export async function adminFetch(
   init?: RequestInit,
 ): Promise<Response> {
   const token = await getToken().catch(() => null);
+  // FormData sets its own multipart Content-Type (with boundary) — never override it.
+  const json = init?.body instanceof FormData ? {} : { "Content-Type": "application/json" };
   return fetch(`/api/admin${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}), Authorization: `Bearer ${token}` },
+    headers: { ...json, ...(init?.headers ?? {}), Authorization: `Bearer ${token}` },
   });
 }

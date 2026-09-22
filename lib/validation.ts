@@ -3,6 +3,9 @@ import { z } from "zod";
 // ponytail: CLIENT-SAFE — zod only, no server imports. Shared by admin forms
 // (browser) and admin API routes (server): one contract, both sides.
 
+/** Per-image upload cap: 5 MB. Client checks for UX, server re-checks for security. */
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 const lines = (max: number) =>
   z
     .array(z.string().trim().min(1).max(300))
