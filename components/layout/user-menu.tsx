@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useClerk, useUser } from "@clerk/react";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, ShieldCheck, User as UserIcon } from "lucide-react";
+import { userRole } from "@/lib/roles";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -56,6 +57,14 @@ export default function UserMenu() {
             Profile
           </Link>
         </DropdownMenuItem>
+        {userRole(user) === "admin" ? (
+          <DropdownMenuItem asChild>
+            <Link href="/admin" className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Admin panel
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2">
           <LogOut className="h-4 w-4" />
           Sign out
