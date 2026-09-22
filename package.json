@@ -43,6 +43,7 @@
   "type": "module",
   "scripts": {
     "dev": "vinext dev",
+    "seed": "node --env-file=.env.local scripts/seed.ts",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "deploy": "vinext-cloudflare deploy --config dist/server/wrangler.json",

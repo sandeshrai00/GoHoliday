@@ -3,8 +3,10 @@ export type Role = "admin" | "user";
 export const DEFAULT_ROLE: Role = "user";
 
 declare global {
+  // Custom session claim (Clerk Dashboard → Sessions → Customize session token).
+  // NOTE: `role` itself is reserved by Clerk (always "authenticated") — ours is `app_role`.
   interface CustomJwtSessionClaims {
-    role?: string;
+    app_role?: string;
   }
 }
 

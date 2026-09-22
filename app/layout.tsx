@@ -3,6 +3,7 @@ import "@fontsource-variable/inter";
 import "./globals.css";
 import { Toaster } from "sonner";
 import ClerkClientProvider from "@/components/providers/clerk-provider";
+import { CurrencyProvider } from "@/components/site/use-currency";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
 
 export const metadata: Metadata = {
@@ -15,8 +16,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         <ClerkClientProvider>
-          {children}
-          <Toaster richColors position="top-center" />
+          <CurrencyProvider>
+            {children}
+            <Toaster richColors position="top-center" />
+          </CurrencyProvider>
         </ClerkClientProvider>
       </body>
     </html>

@@ -10,15 +10,18 @@ export interface VerifiedRequest {
 
 function backend() {
   const secretKey = process.env.CLERK_SECRET_KEY;
-  if (!secretKey) throw new Error("Missing CLERK_SECRET_KEY");
-  // ponytail: secretKey-only verification (JWKS fetched + cached per isolate).
+  // authenticateRequest derives the frontend API + instance type from the
+  // publishable key — secretKey alone throws inside the SDK (silent 401s).
+  const publishableKey = process.env.VITE_CLERK_PUBLISHABLE_KEY;
+  if (!secretKey || !publishableKey) throw new Error("Missing CLERK_SECRET_KEY or VITE_CLERK_PUBLISHABLE_KEY");
+  // ponytail: secretKey verification (JWKS fetched + cached per isolate).
   // Paste the PEM public key as CLERK_JWT_KEY for zero-network verification if latency matters.
-  return createClerkClient({ secretKey });
+  return createClerkClient({ secretKey, publishableKey });
 }
 
 /**
  * Verifies the request's Clerk session JWT server-side.
- * The role comes from the `role` session claim (verified token, not client input).
+ * The role comes from the `app_role` session claim (verified token, not client input).
  * Returns null when unauthenticated or verification fails.
  */
 export async function verifyRequest(req?: Request): Promise<VerifiedRequest | null> {
@@ -29,8 +32,10 @@ export async function verifyRequest(req?: Request): Promise<VerifiedRequest | nu
     if (!state.isAuthenticated) return null;
     const auth = state.toAuth();
     if (!auth.userId) return null;
-    return { userId: auth.userId, role: normalizeRole(auth.sessionClaims?.role) };
-  } catch {
+    return { userId: auth.userId, role: normalizeRole(auth.sessionClaims?.app_role) };
+  } catch (err) {
+    // Visible server-side so auth failures are diagnosable (never silent 401s again).
+    console.error("verifyRequest failed:", err instanceof Error ? err.message : err);
     return null;
   }
 }
